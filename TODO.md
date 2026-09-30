@@ -12,3 +12,4 @@ The basic tasks that need to be addressed in the future are outlined here.
 5. Implement a fallback for the `[image hide]` tag modification in case the developer hasn't defined the `hide` (or `dr-hide-active`) CSS class for the object.
 6. Preload tag objects before displaying the rest of the game content.
 7. Send game script variable packets to the client only if the variable has been used or modified within the script.
+8. Revise the CSS usage system for `[image]` tag images.
