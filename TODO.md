@@ -13,4 +13,3 @@ The basic tasks that need to be addressed in the future are outlined here.
 6. Preload tag objects before displaying the rest of the game content.
 7. Send game script variable packets to the client only if the variable has been used or modified within the script.
 8. Revise the CSS usage system for `[image]` tag images.
-9. Reverse the display order of `[image]` tag layers.
