@@ -15,3 +15,4 @@ The basic tasks that need to be addressed in the future are outlined here.
 8. Revise the CSS usage system for `[image]` tag images.
 9. Add `[image show]` modification animation class to the CSS objects of the `[image]` tag (like with `[image hide]` animation).
 10. Fix the parsing of CSS object paths containing variables when processing game saves.
+11. The [image show] animation must play only upon its initial scripted appearance (Fix the animation replaying when the secondary menu is closed).
