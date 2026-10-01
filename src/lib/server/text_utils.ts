@@ -1,3 +1,5 @@
+import { REMOVE_QUOTATION_MARKS} from "./config";
+
 // Full animation form: "[FROM]..[TO] : MILLIS"
 export const ANIMATION_PATTERN =
     /^\s*(?<from>-?\d+(?:\.\d+)?)?\.\.(?<to>-?\d+(?:\.\d+)?)?\s*:\s*(?<duration>\d+)\s*$/;
@@ -64,8 +66,11 @@ export function parseAnimatedValue(
 export function cleanDialogueText(text: string): string {
     const stripped = text.trim();
     if (
-        (stripped.startsWith('"') && stripped.endsWith('"')) ||
-        (stripped.startsWith("'") && stripped.endsWith("'"))
+        REMOVE_QUOTATION_MARKS &&
+        (
+            (stripped.startsWith('"') && stripped.endsWith('"')) ||
+            (stripped.startsWith("'") && stripped.endsWith("'"))
+        )
     ) {
         return stripped.slice(1, -1).trim();
     }
