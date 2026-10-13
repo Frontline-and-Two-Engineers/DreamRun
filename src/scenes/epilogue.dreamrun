@@ -12,7 +12,7 @@
     > "[epilogue else] You finished wounded."
 [/if]
 
-[audio music "/audio/ambient_loop.wav" bgm_final "0.5~2000" "1.0"/]
+[audio music "/audio/ambient_loop.wav" bgm_final "0.5~2000" "1.0"]
 > "[epilogue audio] Final music fading in."
 
 > "[epilogue] Thank you for testing DreamRun."

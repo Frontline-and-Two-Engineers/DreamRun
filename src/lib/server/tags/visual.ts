@@ -38,11 +38,11 @@ export class ImageTag extends BaseTag {
                 step: {
                     type: 'image',
                     modifier: 'show',
-                    img_path: show[1] ?? show[2] ?? '',
+                    img_path: show[1] ?? (show[2] ? `{${show[2]}}` : ''),
                     id: show[3],
                     layer: show[4],
-                    container_css: show[5] ?? show[6] ?? '',
-                    image_css: show[7] ?? show[8] ?? '',
+                    container_css: show[5] ?? (show[6] ? `{${show[6]}}` : ''),
+                    image_css: show[7] ?? (show[8] ? `{${show[8]}}` : ''),
                 },
                 consumed: true,
             });
@@ -54,11 +54,11 @@ export class ImageTag extends BaseTag {
                 step: {
                     type: 'image',
                     modifier: 'modify',
-                    img_path: modify[1] ?? modify[2] ?? '',
+                    img_path: modify[1] ?? (modify[2] ? `{${modify[2]}}` : ''),
                     id: modify[3],
                     layer: modify[4],
-                    container_css: modify[5] ?? modify[6] ?? '',
-                    image_css: modify[7] ?? modify[8] ?? '',
+                    container_css: modify[5] ?? (modify[6] ? `{${modify[6]}}` : ''),
+                    image_css: modify[7] ?? (modify[8] ? `{${modify[8]}}` : ''),
                 },
                 consumed: true,
             });
@@ -146,6 +146,11 @@ function resolveCssPath(rawPath: string | null): string | null {
 
     if (rawPath.startsWith('http://') || rawPath.startsWith('https://')) {
         return rawPath;
+    }
+
+    // Direct CSS class support: if no .css extension and no slash, treat as class name
+    if (rawPath.startsWith('class:') || (!rawPath.endsWith('.css') && !rawPath.includes('/'))) {
+        return rawPath.startsWith('class:') ? rawPath : `class:${rawPath.trim()}`;
     }
 
     let relative: string;

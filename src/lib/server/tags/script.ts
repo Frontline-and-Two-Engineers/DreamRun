@@ -101,7 +101,7 @@ export async function executeScriptStep(step: Step, ctx: ExecContext): Promise<v
     if (lang !== 'python' && lang !== 'ts') {
         throw new Error(`Unknown script language: ${String(lang)}`);
     }
-    await runScript(lang, step.code as string, ctx);
+    await runScript(lang, step.code as string, ctx, step.line, step.sourceFile);
 }
 
 export { ScriptRuntimeError };

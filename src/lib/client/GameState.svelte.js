@@ -92,6 +92,8 @@ export class GameState {
                     this.audioManager.setMasterVolume(this.masterVolume);
                 });
             });
+
+            this.connect();
         }
     }
 
@@ -105,7 +107,7 @@ export class GameState {
      * `start` message on the same socket rather than reconnecting.
      */
     connect() {
-        if (this.socket && this.socket.readyState === WebSocket.OPEN) return;
+        if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) return;
 
         const url = `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/api/game`;
         this.socket = new WebSocket(url);
@@ -124,6 +126,9 @@ export class GameState {
     }
 
     _send(payload) {
+        if (!this.socket || this.socket.readyState === WebSocket.CLOSED) {
+            this.connect();
+        }
         if (this.socket && this.socket.readyState === WebSocket.OPEN) {
             this.socket.send(JSON.stringify(payload));
             return;
@@ -176,8 +181,10 @@ export class GameState {
                 return;
 
             case 'frame':
-                if (msg.variables) this.playerVariables = msg.variables;
-                this.processDialogue(msg.frame);
+                if (msg.variables) {
+                    this.playerVariables = { ...this.playerVariables, ...msg.variables };
+                }
+                await this.processDialogue(msg.frame);
                 this.stopLoadingState();
                 return;
 
@@ -269,7 +276,10 @@ export class GameState {
     // --- styles and images -------------------------------------------
 
     async decryptAndLoadStyle(url) {
-        if (!url) return null;
+        if (!url || url === 'none') return null;
+        if (url.startsWith('class:') || (!url.endsWith('.css') && !url.includes('/'))) {
+            return null;
+        }
         if (this.cssBlobCache.has(url)) return this.cssBlobCache.get(url);
         try {
             const response = await fetch(url);
@@ -285,11 +295,23 @@ export class GameState {
         }
     }
 
+    preloadImage(url) {
+        if (!url || url === 'none') return Promise.resolve();
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+            img.src = url;
+        });
+    }
+
     async processImageCommands(commands) {
         if (!Array.isArray(commands)) return;
 
         const getClassNameFromUrl = (url) => {
             if (!url || url === 'none') return '';
+            if (url.startsWith('class:')) return url.slice(6);
+            if (!url.endsWith('.css') && !url.includes('/')) return url;
             const filename = url.substring(url.lastIndexOf('/') + 1);
             return filename.substring(0, filename.lastIndexOf('.')) || filename;
         };
@@ -305,6 +327,7 @@ export class GameState {
                 const [blobContainerStyle, blobImageStyle] = await Promise.all([
                     this.decryptAndLoadStyle(cmd.container_css),
                     this.decryptAndLoadStyle(cmd.image_css),
+                    this.preloadImage(imgUrl),
                 ]);
 
                 this.activeImages = this.activeImages.filter(img => img.id !== id);
@@ -318,12 +341,17 @@ export class GameState {
                     imageClass,
                     containerCss: cmd.container_css || null,
                     imageCss: cmd.image_css || null,
+                    isShowing: true,
+                    hasAppeared: false,
                     isHiding: false,
                 });
             } else if (modifier === 'modify') {
                 const target = this.activeImages.find(img => img.id === id);
                 if (target) {
-                    if (cmd.img_path) target.imgUrl = cmd.img_path;
+                    if (cmd.img_path) {
+                        target.imgUrl = cmd.img_path;
+                        await this.preloadImage(cmd.img_path);
+                    }
                     if (cmd.layer !== undefined) target.layer = cmd.layer;
                     if (cmd.container_css) {
                         target.containerBlob = await this.decryptAndLoadStyle(cmd.container_css);
@@ -343,7 +371,7 @@ export class GameState {
 
     // --- dialogue processing -----------------------------------------
 
-    processDialogue(dialogue) {
+    async processDialogue(dialogue) {
         if (!dialogue) return;
 
         // --- DEBUG ---
@@ -365,7 +393,7 @@ export class GameState {
             this.audioManager.processAudioCommands(dialogue.audio);
         }
         if (Array.isArray(dialogue.images)) {
-            this.processImageCommands(dialogue.images);
+            await this.processImageCommands(dialogue.images);
         }
 
         if (dialogue.type === 'choice') {
@@ -412,6 +440,7 @@ export class GameState {
 
     async selectChoice(choiceIndex) {
         if (this.isLoading) return;
+        this.pendingScreenshot = null;
         this.startLoadingState();
         this.currentChoices = [];
         this._send({ type: 'choice', index: choiceIndex });
@@ -423,6 +452,7 @@ export class GameState {
         if (this.currentChoices.length > 0) return;
         if (this.isLoading) return;
 
+        this.pendingScreenshot = null;
         this.startLoadingState();
         this.pendingNextStep = false;
         this._send({ type: 'advance' });
@@ -532,7 +562,6 @@ export class GameState {
             },
         });
         const result = await wait;
-        this.pendingScreenshot = null;
         this.stopLoadingState();
         return result;
     }
@@ -589,6 +618,11 @@ export class GameState {
         // Process image layout matrix structures bulk configurations
         if (Array.isArray(replay.images) && replay.images.length > 0) {
             await this.processImageCommands(replay.images);
+            // Replayed images from a save should not replay their show animation
+            for (const img of this.activeImages) {
+                img.isShowing = false;
+                img.hasAppeared = true;
+            }
         }
 
         if (Array.isArray(replay.audio) && replay.audio.length > 0) {
@@ -596,7 +630,7 @@ export class GameState {
         }
 
         if (replay.firstFrame) {
-            this.processDialogue(replay.firstFrame);
+            await this.processDialogue(replay.firstFrame);
         }
 
         // --- DEBUG ---

@@ -8,6 +8,8 @@ import { buildSaveFile, restoreFromSaveFile } from './save_manager.js';
 import { getPublicVariables } from './utils.js';
 import { listSaves, getSave, putSave } from './saves.js';
 import { Character, Ramp } from './runtime_types.js';
+import { EngineError } from './errors.js';
+import { ScriptRuntimeError } from './script_runtime.js';
 import type { SaveMetadata } from './save_types.js';
 
 export type SocketState = {
@@ -70,6 +72,23 @@ export async function handleSocketMessage(
         }
     } catch (err) {
         console.error('[DreamRun][ws] handler error:', err);
+        if (err instanceof ScriptRuntimeError) {
+            const loc = err.sourceFile ? ` in ${err.sourceFile}:${err.line ?? '?'}` : (err.line ? ` on line ${err.line}` : '');
+            return sendError(
+                state.ws,
+                `SCRIPT_${err.lang.toUpperCase()}_ERROR`,
+                `${err.lang.toUpperCase()} error${loc}: ${err.cause instanceof Error ? err.cause.message : String(err.cause)}`,
+                `Failed code block:\n${err.code}\n\nStack:\n${err.cause instanceof Error ? (err.cause.stack ?? 'None') : String(err.cause)}`
+            );
+        }
+        if (err instanceof EngineError) {
+            return sendError(
+                state.ws,
+                err.status,
+                err.message,
+                err.details ?? 'None'
+            );
+        }
         return sendError(
             state.ws,
             'RUNTIME_ERROR',
@@ -110,7 +129,7 @@ async function onStart(state: SocketState): Promise<void> {
     await loadDefaultVars(session);
 
     send(state.ws, { type: 'session', sessionId, token: state.token });
-    await pushNextFrame(state);
+    await pushNextFrame(state, true);
 }
 
 async function onAdvance(state: SocketState): Promise<void> {
@@ -232,7 +251,7 @@ async function onResume(state: SocketState, token: unknown): Promise<void> {
     return sendError(state.ws, 'RESUME_UNAVAILABLE', 'Resume is not enabled in this build.', 'None');
 }
 
-async function pushNextFrame(state: SocketState): Promise<void> {
+async function pushNextFrame(state: SocketState, forceAllVars = false): Promise<void> {
     if (!state.sessionId) return;
     const session = SESSIONS.get(state.sessionId)!;
 
@@ -241,16 +260,23 @@ async function pushNextFrame(state: SocketState): Promise<void> {
     if (result.steps.length === 0) {
         send(state.ws, {
             type: 'end',
-            variables: getPublicVariables(session.runtime_env),
+            variables: forceAllVars ? getPublicVariables(session.runtime_env) : result.changedVariables,
         });
         return;
     }
 
-    send(state.ws, {
+    const payload: Record<string, unknown> = {
         type: 'frame',
         frame: result.steps[0],
-        variables: getPublicVariables(session.runtime_env),
-    });
+    };
+
+    if (forceAllVars) {
+        payload.variables = getPublicVariables(session.runtime_env);
+    } else if (result.changedVariables && Object.keys(result.changedVariables).length > 0) {
+        payload.variables = result.changedVariables;
+    }
+
+    send(state.ws, payload);
 }
 
 function send(ws: WebSocket, payload: unknown): void {

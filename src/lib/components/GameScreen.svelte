@@ -2,7 +2,7 @@
     import './GameScreen.css'
     import { useGameContext } from '$lib/__index__.svelte';
     import { onDestroy } from 'svelte';
-    import { toCanvas } from 'html-to-image';
+    import { toPng } from 'html-to-image';
 
     const game = useGameContext();
 
@@ -52,6 +52,34 @@
         game.activeImages = game.activeImages.filter(img => img.id !== id);
     }
 
+    function finalizeShowSequence(id) {
+        const target = game.activeImages.find(img => img.id === id);
+        if (target) {
+            target.isShowing = false;
+            target.hasAppeared = true;
+        }
+    }
+
+    function handleAnimationEnd(img) {
+        if (img.isHiding) {
+            finalizeHideSequence(img.id);
+        } else if (img.isShowing) {
+            finalizeShowSequence(img.id);
+        }
+    }
+
+    $effect(() => {
+        // Fallback for image hiding: if CSS animation/transition is not defined
+        // or fails to trigger, ensure image is removed after safety window.
+        for (const img of sortedImages) {
+            if (img.isHiding && !img._hideTimer) {
+                img._hideTimer = setTimeout(() => {
+                    finalizeHideSequence(img.id);
+                }, 350);
+            }
+        }
+    });
+
     function finishReveal() {
         clearAnimation();
         displayedText = game.currentText;
@@ -74,20 +102,28 @@
     }
 
     /**
-     * Renders a save-slot thumbnail at a fixed 1280x720 canvas.
-     *
-     * The scene is composed from GameState.activeImages and the current
-     * dialogue fields, not from a DOM snapshot. This keeps the thumbnail
-     * independent of the actual window size: a save made on a 4K desktop
-     * and one made on a laptop produce identical thumbnails, which is
-     * what the slot grid wants.
-     *
-     * Images are fitted into the canvas using the same rules as
-     * GameScreen.css applies to .dreamrun-dynamic-image. When that rule
-     * is object-fit: contain, use 'contain' below; for object-fit: cover,
-     * use 'cover'. Keep the two in sync.
+     * Captures a screenshot of the live game screen using html-to-image.
+     * Falls back to canvas drawing if DOM capture is unsupported.
      */
     async function captureScreenshot() {
+        const screenEl = document.querySelector('.game-screen');
+        if (screenEl) {
+            try {
+                const data = await toPng(screenEl, {
+                    pixelRatio: 0.5,
+                    filter: (node) => {
+                        return !(node.classList && node.classList.contains('interface-toolbar'));
+                    },
+                });
+                if (data) return data;
+            } catch (err) {
+                console.warn('[DreamRun][save] toPng failed, falling back to canvas', err);
+            }
+        }
+        return fallbackCanvasCapture();
+    }
+
+    async function fallbackCanvasCapture() {
         const W = 1280;
         const H = 720;
 
@@ -329,9 +365,10 @@
                 <div
                     class={img.containerClass}
                     data-node-id={img.id}
-                    class:dr-hide-active={img.isHiding}
-                    onanimationend={() => { if (img.isHiding) finalizeHideSequence(img.id); }}
-                    ontransitionend={() => { if (img.isHiding) finalizeHideSequence(img.id); }}
+                    class:show={img.isShowing}
+                    class:hide={img.isHiding}
+                    onanimationend={() => handleAnimationEnd(img)}
+                    ontransitionend={() => handleAnimationEnd(img)}
                 >
                     <img
                         src={img.imgUrl}

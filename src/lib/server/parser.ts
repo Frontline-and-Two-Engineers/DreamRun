@@ -53,13 +53,22 @@ export function parseDreamrunBlocks(filePath: string): ParsedScript | null {
         // Skip blank lines and comments.
         if (!line || line.startsWith('#')) continue;
 
+        const fileName = filePath.replace(/\\/g, '/').split('/').pop() || filePath;
         let handled = false;
         for (const tag of ALL_TAGS) {
             const result: TagParseResult = tag.parse(line, lineIdx, ctx);
 
-            if (result.scope_open) ctx.scope_stack.push(result.scope_open);
-            if (result.scope_close) closeScope(ctx, result.scope_close, lineIdx);
-            if (result.step) routeStep(ctx, result.step, mainSteps);
+            if (result.scope_open) {
+                (result.scope_open as any).line = lineIdx + 1;
+                ctx.scope_stack.push(result.scope_open);
+            }
+            if (result.scope_close) closeScope(ctx, result.scope_close, lineIdx, fileName);
+            if (result.step) {
+                result.step.line = result.step.line ?? (lineIdx + 1);
+                result.step.sourceFile = result.step.sourceFile ?? fileName;
+                result.step.sourceLine = result.step.sourceLine ?? rawLine;
+                routeStep(ctx, result.step, mainSteps);
+            }
             if (result.consumed) {
                 handled = true;
                 break;
@@ -114,7 +123,7 @@ function routeStep(ctx: ParseContext, step: Step, mainSteps: Step[]): void {
  * - An answer frame is attached to the nearest enclosing choice.
  * - An if frame becomes a `conditional_block` step with all branches.
  */
-function closeScope(ctx: ParseContext, expectedType: string, lineIdx: number): void {
+function closeScope(ctx: ParseContext, expectedType: string, lineIdx: number, fileName?: string): void {
     const stack = ctx.scope_stack;
     const top = stack[stack.length - 1];
     if (!top || top.type !== expectedType) {
@@ -136,7 +145,12 @@ function closeScope(ctx: ParseContext, expectedType: string, lineIdx: number): v
     }
 
     if (frame.type === 'choice') {
-        routeStep(ctx, { type: 'choice', options: frame.answers }, ctx._main_steps_ref);
+        routeStep(ctx, {
+            type: 'choice',
+            options: frame.answers,
+            line: (frame.line as number) ?? (lineIdx + 1),
+            sourceFile: fileName,
+        }, ctx._main_steps_ref);
         return;
     }
 
@@ -162,7 +176,12 @@ function closeScope(ctx: ParseContext, expectedType: string, lineIdx: number): v
         });
         routeStep(
             ctx,
-            { type: 'conditional_block', branches: frame.branches },
+            {
+                type: 'conditional_block',
+                branches: frame.branches,
+                line: (frame.line as number) ?? (lineIdx + 1),
+                sourceFile: fileName,
+            },
             ctx._main_steps_ref
         );
         return;

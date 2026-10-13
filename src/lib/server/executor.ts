@@ -24,7 +24,7 @@ import type { ExecResult } from './tags/base.js';
  */
 export async function executeCompiled(
     sessionId: string,
-): Promise<{ steps: Frame[] }> {
+): Promise<{ steps: Frame[]; changedVariables?: Record<string, unknown> }> {
     const session = SESSIONS.get(sessionId);
     if (!session) throw new Error(`Session not found: ${sessionId}`);
 
@@ -175,12 +175,26 @@ export async function replayTo(
     return { audio, images, firstFrame, warnings };
 }
 
+function trackEnv(env: Record<string, unknown>, modified: Set<string>): Record<string, unknown> {
+    return new Proxy(env, {
+        set(target, prop, value) {
+            if (typeof prop === 'string') modified.add(prop);
+            return Reflect.set(target, prop, value);
+        },
+        deleteProperty(target, prop) {
+            if (typeof prop === 'string') modified.add(prop);
+            return Reflect.deleteProperty(target, prop);
+        },
+    });
+}
+
 /**
  * Core loop: runs until one visible frame is produced or the
  * scenario ends.
  */
-async function runUntilVisible(session: Session): Promise<{ steps: Frame[] }> {
-    const env = session.runtime_env;
+async function runUntilVisible(session: Session): Promise<{ steps: Frame[]; changedVariables?: Record<string, unknown> }> {
+    const modifiedKeys = new Set<string>();
+    const env = trackEnv(session.runtime_env, modifiedKeys);
     const dialogues: Frame[] = [];
     const ctx: ExecContext = { session, env, dialogues };
 
@@ -284,7 +298,19 @@ async function runUntilVisible(session: Session): Promise<{ steps: Frame[] }> {
         dispatch(step, ctx);
     }
 
-    return { steps: dialogues };
+    let changedVariables: Record<string, unknown> | undefined = undefined;
+    if (modifiedKeys.size > 0) {
+        changedVariables = {};
+        for (const k of modifiedKeys) {
+            if (k.startsWith('__') || k === 'Character' || k === 'Ramp') continue;
+            const val = session.runtime_env[k];
+            if (typeof val !== 'function') {
+                changedVariables[k] = val;
+            }
+        }
+    }
+
+    return { steps: dialogues, changedVariables };
 }
 
 function pickBranch(

@@ -19,8 +19,8 @@
 ## 1. CONFIG AND BACKGROUND
 ## ------------------------------------------------------------
 
-[config "game_init"/]
-[image show "/bg/cyberpunk_lab.png" bg 0 "/styles/bg_cover.css" ""/]
+[config "game_init"]
+[image show "/bg/cyberpunk_lab.png" bg 0 "/styles/bg_cover.css" ""]
 
 > "[config] game_init loaded. starting_gold = {starting_gold}"
 
@@ -28,27 +28,27 @@
 ## 2. AUDIO
 ## ------------------------------------------------------------
 
-[audio music "/audio/ambient_loop.wav" bgm "0.1~1500" "1.0"/]
+[audio music "/audio/ambient_loop.wav" bgm "0.1~1500" "1.0"]
 > "[audio music] Ambient started with 1.5s fade-in to 30%."
 
-[audio modify bgm "0.6~5000" "1.0"/]
+[audio modify bgm "0.6~5000" "1.0"]
 > "[audio modify] Volume ramped to 60%."
 
-[audio pause bgm/]
+[audio pause bgm]
 > "[audio pause] Paused."
 
-[audio resume bgm/]
+[audio resume bgm]
 > "[audio resume] Resumed."
 
-[audio stop bgm/]
+[audio stop bgm]
 > "[audio stop] Ambient stopped."
 
 ## ------------------------------------------------------------
 ## 3. TS AND PYTHON INLINE AND MULTILINE
 ## ------------------------------------------------------------
 
-[ts "hero.gold = starting_gold"/]
-[ts "hero.hp = 100"/]
+[ts "hero.gold = starting_gold"]
+[ts "hero.hp = 100"]
 
 :hero: > "[ts inline] Starting with {hero.gold} gold, {hero.hp} HP."
 
@@ -81,7 +81,7 @@
 [python "hero.hp = hero.hp - 5"]
 :hero: > "[python -> ts] HP after Python dip: {hero.hp}."
 
-[python "hero.gold = hero.gold + (10 if hero.hp > 50 else 0)"/]
+[python "hero.gold = hero.gold + (10 if hero.hp > 50 else 0)"]
 :hero: > "[conditional ts] Gold after HP check: {hero.gold}."
 
 ## ------------------------------------------------------------
@@ -130,23 +130,23 @@ Aria > "[literal speaker] My name is shown verbatim."
 ## 6. PASS AND PAUSE
 ## ------------------------------------------------------------
 
-[pass/]
+[pass]
 > "[pass] Executed [pass/] and continued."
 
-[pause 1000/]
+[pause 1000]
 > "[pause] Waited 1000ms."
 
-[pause 1000 block/]
+[pause 1000 block]
 > "[pause block] Waited 1000ms with block flag."
 
 ## ------------------------------------------------------------
 ## 7. IMAGES
 ## ------------------------------------------------------------
 
-[image show "/images/sprite.png" hero_sprite 10 "/styles/hero_in.css" "/styles/hero_in_img.css"/]
+[image show "/images/sprite.png" hero_sprite 10 "/styles/hero_in.css" "/styles/hero_in_img.css"]
 > "[image show] Hero appears with slide-in animation."
 
-[image modify "/images/sprite.png" hero_sprite 15 "/styles/fade_out.css" "/styles/fade_out_img.css"/]
+[image modify "/images/sprite.png" hero_sprite 15 "/styles/fade_out.css" "/styles/fade_out_img.css"]
 > "[image modify] Hero layer changed to 15, new CSS applied."
 
 ## ------------------------------------------------------------
@@ -157,7 +157,7 @@ Aria > "[literal speaker] My name is shown verbatim."
 
 [choice]
     [answer "Rest at the inn"]
-        [ts "hero.hp = Math.min(100, hero.hp + 30)"/]
+        [ts "hero.hp = Math.min(100, hero.hp + 30)"]
         > "[choice A] Rested. HP is now {hero.hp}."
     [/answer]
 
@@ -170,7 +170,7 @@ Aria > "[literal speaker] My name is shown verbatim."
     [/answer]
 
     [answer "Do nothing"]
-        [pass/]
+        [pass]
         > "[choice C] Did nothing."
     [/answer]
 [/choice]
@@ -206,11 +206,11 @@ Aria > "[literal speaker] My name is shown verbatim."
 
 > "[jump] Calling a ref."
 
-[jump show_status/]
+[jump show_status]
 
 > "[jump return] Back from show_status."
 
-[goto finale/]
+[goto finale]
 
 > "[goto skip] This line should not appear."
 
@@ -233,5 +233,5 @@ Aria > "[literal speaker] My name is shown verbatim."
     > "[ref finale] Reached the finale via [goto]."
     :hero: > "[ref finale] Final HP: {hero.hp}, Gold: {hero.gold}"
     > "[ref finale] Continuing to the epilogue."
-    [next "epilogue.dreamrun"/]
+    [next "epilogue.dreamrun"]
 [/ref]

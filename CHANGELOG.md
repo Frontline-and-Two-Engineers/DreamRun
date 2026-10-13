@@ -17,6 +17,31 @@ changelog does not describe them.
 
 ## Unreleased
 
+## 3.2.0 — 2026-10-13
+
+### Added
+
+- Optional trailing slashes in single-line tags: tags such as `[next]`, `[goto]`, `[pause]`, `[image]`, and `[sound]` can now be written without a trailing slash (`/`).
+- Direct CSS class styling for `[image]` tags: authors can specify CSS class names directly (`class="..."` or `.classname`) without having to provide a dedicated CSS file path.
+- `show` animation class for `[image]` elements during visual entrance transitions.
+- Fallback transition styling and safety timer (350ms) for `[image hide]` when no custom `hide` animation keyframes are provided.
+- Asset preloading: image assets referenced in upcoming dialogue steps are preloaded asynchronously prior to rendering the dialogue, preventing visual stutter and layout flash.
+- Delta variable transmission: the engine now tracks variable usage and mutations during script execution and sends only changed variables across WebSockets, reducing payload size.
+- Explicit source location tracking (`sourceFile`, `sourceLine`, step index) in runtime error diagnostics for TypeScript and Python script blocks.
+
+### Changed
+
+- Replaced internal `dr-hide-active` CSS class with the standard `hide` class for image exit animations (retaining backwards compatibility).
+- Menu screens (Save, Settings) are now rendered as overlays without unmounting the active game screen, preventing unwanted retriggering of image entrance animations.
+
+### Fixed
+
+- Fixed screenshot generation for save game slots using `html-to-image` rendering and canvas fallbacks.
+- Fixed `pendingScreenshot` state leakage across save slots.
+- Fixed variable interpolation (`{var}`) preservation for CSS object paths in save state serialization.
+- Fixed save menu displaying empty slots when accessed from the main menu before starting a game (WebSocket connection and identification are now established on client initialization).
+- Fixed dialogue repeating twice after loading a save by preserving the cursor advance performed by `replayTo` when materializing `firstFrame`.
+
 ## 3.1.0 — 2026-09-21
 
 The first release with a stable, documented public interface. From this point

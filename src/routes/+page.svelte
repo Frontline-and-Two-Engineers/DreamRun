@@ -37,12 +37,17 @@
 
 {#if game.currentScreen === 'MENU'}
     <MainMenu />
-{:else if game.currentScreen === 'SETTINGS'}
-    <SettingsMenu />
-{:else if game.currentScreen === 'GAME'}
-    <GameScreen />
 {:else if game.currentScreen === 'ERROR'}
     <ErrorMsg />
+{:else if game.isGameStarted}
+    <GameScreen />
+    {#if game.currentScreen === 'SETTINGS'}
+        <SettingsMenu />
+    {:else if game.currentScreen === 'SAVES'}
+        <SaveMenu />
+    {/if}
+{:else if game.currentScreen === 'SETTINGS'}
+    <SettingsMenu />
 {:else if game.currentScreen === 'SAVES'}
     <SaveMenu />
 {/if}

@@ -9,13 +9,25 @@ export class ScriptRuntimeError extends Error {
     lang: 'python' | 'ts';
     code: string;
     cause: unknown;
+    line?: number;
+    sourceFile?: string;
 
-    constructor(lang: 'python' | 'ts', code: string, cause: unknown) {
-        super(`${lang} execution failed`);
+    constructor(
+        lang: 'python' | 'ts',
+        code: string,
+        cause: unknown,
+        line?: number,
+        sourceFile?: string,
+    ) {
+        const loc = sourceFile ? ` (${sourceFile}:${line ?? '?'})` : (line ? ` (line ${line})` : '');
+        const detail = cause instanceof Error ? cause.message : String(cause);
+        super(`${lang} execution failed${loc}: ${detail}`);
         this.name = 'ScriptRuntimeError';
         this.lang = lang;
         this.code = code;
         this.cause = cause;
+        this.line = line;
+        this.sourceFile = sourceFile;
     }
 }
 
@@ -27,10 +39,12 @@ export class ScriptRuntimeError extends Error {
 export async function runScript(
     lang: 'python' | 'ts',
     code: string,
-    ctx: ExecContext
+    ctx: ExecContext,
+    line?: number,
+    sourceFile?: string,
 ): Promise<void> {
-    if (lang === 'ts') return runTs(code, ctx);
-    if (lang === 'python') return runPython(code, ctx);
+    if (lang === 'ts') return runTs(code, ctx, line, sourceFile);
+    if (lang === 'python') return runPython(code, ctx, line, sourceFile);
     throw new Error(`Unsupported script language: ${lang}`);
 }
 
@@ -46,7 +60,7 @@ export async function runScript(
  * the runtime environment. `ctx` and `env` are also passed as function
  * parameters so that shadowed names still work.
  */
-function runTs(code: string, ctx: ExecContext): void {
+function runTs(code: string, ctx: ExecContext, line?: number, sourceFile?: string): void {
     try {
         const runner = new Function('ctx', 'env', `
             with (env) {
@@ -55,7 +69,7 @@ function runTs(code: string, ctx: ExecContext): void {
         `);
         runner(ctx, ctx.env);
     } catch (err) {
-        throw new ScriptRuntimeError('ts', code, err);
+        throw new ScriptRuntimeError('ts', code, err, line, sourceFile);
     }
 }
 
@@ -78,7 +92,7 @@ let pyodideLock: Promise<void> = Promise.resolve();
  * The lock around pyodideLock guarantees that only one Python block
  * executes at a time.
  */
-async function runPython(code: string, ctx: ExecContext): Promise<void> {
+async function runPython(code: string, ctx: ExecContext, line?: number, sourceFile?: string): Promise<void> {
     const currentLock = pyodideLock;
     let resolveLock: () => void;
     pyodideLock = new Promise(r => { resolveLock = r; });
@@ -92,7 +106,7 @@ async function runPython(code: string, ctx: ExecContext): Promise<void> {
         py.runPython(code, { globals: envProxy });
         syncPythonToJs(envProxy, ctx.env);
     } catch (err) {
-        throw new ScriptRuntimeError('python', code, err);
+        throw new ScriptRuntimeError('python', code, err, line, sourceFile);
     } finally {
         if (envProxy && typeof envProxy.destroy === 'function') {
             envProxy.destroy();

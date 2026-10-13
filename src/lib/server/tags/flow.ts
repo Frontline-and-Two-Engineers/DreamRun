@@ -6,7 +6,7 @@ import type { Step, ExecContext, ParseContext } from '../types.js';
  */
 export class PassTag extends BaseTag {
     name = 'pass';
-    private readonly PATTERN = /^\[pass\s*\/\]$/;
+    private readonly PATTERN = /^\[pass\s*\/?\]$/;
 
     parse(line: string, _lineIdx: number, _ctx: ParseContext): TagParseResult {
         if (!this.PATTERN.test(line)) {
@@ -105,7 +105,7 @@ export class GotoTag extends BaseTag {
  */
 export class PauseTag extends BaseTag {
     name = 'pause';
-    private readonly PATTERN = /^\[pause\s+(?<duration>\d+)(?:\s+(?<block>block))?\/\]$/;
+    private readonly PATTERN = /^\[pause\s+(?<duration>\d+)(?:\s+(?<block>block))?\s*\/?\]$/;
 
     parse(line: string, _lineIdx: number, _ctx: ParseContext): TagParseResult {
         const m = this.PATTERN.exec(line);

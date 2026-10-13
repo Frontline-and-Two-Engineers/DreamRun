@@ -9,6 +9,9 @@ export type Step = {
     type: string;
     lang?: 'python' | 'ts';
     code?: string;
+    line?: number;
+    sourceFile?: string;
+    sourceLine?: string;
     [key: string]: unknown;
 };
 

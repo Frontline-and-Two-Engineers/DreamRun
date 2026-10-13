@@ -135,7 +135,9 @@ export async function restoreFromSaveFile(file: SaveFile): Promise<RestoreResult
     // stack reflects the state at the moment of saving, which is
     // what the runtime should have on resume.
     session.return_stack = [...(snapshot.return_stack ?? [])];
-    session.cursor = target;
+    if (!replay.firstFrame) {
+        session.cursor = target;
+    }
 
     const sessionId = createSession(session);
 
